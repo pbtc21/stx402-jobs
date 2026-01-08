@@ -1,0 +1,12 @@
+name = "stx402-jobs"
+main = "src/index.ts"
+compatibility_date = "2024-01-01"
+workers_dev = true
+
+[vars]
+ENVIRONMENT = "production"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "stx402-jobs-db"
+database_id = "b2d6206d-07f2-4301-b040-dadbafc2e022"
