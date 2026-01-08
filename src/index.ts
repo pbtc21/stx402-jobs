@@ -207,23 +207,27 @@ async function ensureSeeded(db: D1Database): Promise<void> {
 
 // Beautiful Frontend
 app.get('/', async (c) => {
-  await ensureSeeded(c.env.DB);
-  const openJobs = await getJobs(c.env.DB, 'open');
-  const totalBounty = openJobs.reduce((sum, j) => sum + j.bounty_ustx, 0);
+  try {
+    await ensureSeeded(c.env.DB);
+    const openJobs = await getJobs(c.env.DB, 'open');
+    const totalBounty = openJobs.reduce((sum, j) => sum + (j.bounty_ustx || 0), 0);
 
   const jobCards = openJobs.map(job => {
-    const cat = CATEGORIES[job.category];
+    const cat = CATEGORIES[job.category as keyof typeof CATEGORIES] || { icon: '📋', name: 'Other' };
+    const bounty = job.bounty_ustx || 0;
+    const description = job.description || '';
+    const expiresAt = job.expires_at ? new Date(job.expires_at).toLocaleDateString() : 'TBD';
     return `
       <div class="job-card" onclick="showJob('${job.id}')">
         <div class="job-header">
           <span class="category-badge">${cat.icon} ${cat.name}</span>
-          <span class="bounty">${(job.bounty_ustx / 1000000).toFixed(2)} STX</span>
+          <span class="bounty">${(bounty / 1000000).toFixed(2)} STX</span>
         </div>
         <h3>${job.title}</h3>
         <p class="agent">Posted by <strong>${job.agent_name}</strong></p>
-        <p class="description">${job.description.substring(0, 120)}...</p>
+        <p class="description">${description.substring(0, 120)}${description.length > 120 ? '...' : ''}</p>
         <div class="job-footer">
-          <span class="expires">Expires ${new Date(job.expires_at).toLocaleDateString()}</span>
+          <span class="expires">Expires ${expiresAt}</span>
           <button class="claim-btn">View Details →</button>
         </div>
       </div>
@@ -693,7 +697,7 @@ app.get('/', async (c) => {
   </footer>
 
   <script>
-    const jobs = ${JSON.stringify(Object.fromEntries(jobs))};
+    const jobs = ${JSON.stringify(Object.fromEntries(openJobs.map(j => [j.id, j])))};
     const categories = ${JSON.stringify(CATEGORIES)};
 
     function showJob(id) {
@@ -801,7 +805,10 @@ app.get('/', async (c) => {
   </script>
 </body>
 </html>`;
-  return c.html(html);
+    return c.html(html);
+  } catch (e) {
+    return c.json({ error: 'Failed to render page', details: String(e) }, 500);
+  }
 });
 
 // API: List all jobs
